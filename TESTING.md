@@ -21,17 +21,61 @@ This starts an Ubuntu desktop with XFCE and Chromium, accessible via VNC.
 - Connect to `localhost:5901`
 - Password: `vncpassword`
 
-### 3. Run the VNC Backend Tests
+### 3. Run the Tests
+
+#### VNC Backend Tests
 
 ```bash
 # Test coordinate denormalization only (no VNC required)
-uv run python test_vnc_backend.py --skip-connection
+uv run python tests/test_vnc_backend.py --skip-connection
 
 # Test with the Docker VNC desktop (using default settings)
-uv run python test_vnc_backend.py
+uv run python tests/test_vnc_backend.py
 
 # Or specify VNC server explicitly
-uv run python test_vnc_backend.py --vnc localhost::5901 --password vncpassword
+uv run python tests/test_vnc_backend.py --vnc localhost::5901 --password vncpassword
+```
+
+#### Gemini Wrapper Tests
+
+```bash
+# Run without API (mock tests only)
+uv run python tests/test_gemini_wrapper.py
+
+# Run with real API
+export GOOGLE_API_KEY=your_key
+uv run python tests/test_gemini_wrapper.py --with-api
+```
+
+#### End-to-End Tests
+
+```bash
+# Simple desktop task
+export GOOGLE_API_KEY=your_key
+docker-compose up -d
+uv run python tests/test_e2e.py --test simple
+
+# Browser search task
+uv run python tests/test_browser_search.py
+```
+
+#### Using pytest (Recommended)
+
+```bash
+# Install dev dependencies
+uv sync --extra dev
+
+# Run all tests
+uv run pytest
+
+# Run specific test file
+uv run pytest tests/test_vnc_backend.py
+
+# Run with verbose output
+uv run pytest -v
+
+# Run specific test function
+uv run pytest tests/test_vnc_backend.py::test_coordinate_denormalization
 ```
 
 ### 4. Stop the Container

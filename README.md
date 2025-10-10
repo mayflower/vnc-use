@@ -172,13 +172,13 @@ This makes it easy to understand what the agent saw, what it tried to do, and wh
 ```bash
 # VNC backend tests (with Docker VNC)
 docker-compose up -d
-uv run python test_vnc_backend.py
+uv run python tests/test_vnc_backend.py
 
 # Gemini wrapper tests (no API needed)
-uv run python test_gemini_wrapper.py
+uv run python tests/test_gemini_wrapper.py
 
 # With real API
-GOOGLE_API_KEY=key uv run python test_gemini_wrapper.py --with-api
+GOOGLE_API_KEY=key uv run python tests/test_gemini_wrapper.py --with-api
 ```
 
 ### End-to-End Test
@@ -186,7 +186,20 @@ GOOGLE_API_KEY=key uv run python test_gemini_wrapper.py --with-api
 ```bash
 # Requires GOOGLE_API_KEY and running VNC
 docker-compose up -d
-GOOGLE_API_KEY=key uv run python test_e2e.py --test simple
+GOOGLE_API_KEY=key uv run python tests/test_e2e.py --test simple
+```
+
+### Using pytest
+
+```bash
+# Install dev dependencies
+uv sync --extra dev
+
+# Run all tests
+uv run pytest
+
+# Run specific test file
+uv run pytest tests/test_vnc_backend.py
 ```
 
 ## Project Structure
@@ -204,11 +217,15 @@ vnc-use/
 │   │   └── vnc.py           # VNC controller
 │   └── planners/
 │       └── gemini.py        # Gemini wrapper
-├── test_vnc_backend.py      # VNC tests
-├── test_gemini_wrapper.py   # Gemini tests
-├── test_e2e.py              # E2E tests
-├── docker-compose.yml       # Test VNC desktop
-└── pyproject.toml
+├── tests/
+│   ├── test_vnc_backend.py      # VNC tests
+│   ├── test_gemini_wrapper.py   # Gemini tests
+│   ├── test_e2e.py              # E2E tests
+│   └── test_browser_search.py   # Browser automation tests
+├── docker-compose.yml           # Test VNC desktop
+├── pyproject.toml               # Package configuration
+├── LICENSE                      # MIT license
+└── README.md                    # This file
 ```
 
 ## Requirements
@@ -231,11 +248,9 @@ vnc-use/
 - **Coordinate system:** Normalized 0-999 grid
 - **Response format:** FunctionCalls with PNG screenshots
 
-## Architecture Details
+## Testing Guide
 
-For implementation details, see:
-- [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) - Current status and known limitations
-- [TESTING.md](TESTING.md) - Testing guide
+For detailed testing instructions, see [TESTING.md](TESTING.md)
 
 ## Contributing
 
