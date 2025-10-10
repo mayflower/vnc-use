@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  vnc-desktop:
+    image: accetto/ubuntu-vnc-xfce-chromium-g3:latest
+    container_name: vnc-use-test-desktop
+    ports:
+      - "5901:5901"  # VNC server
+      - "6901:6901"  # noVNC web interface
+    environment:
+      - VNC_PW=vncpassword
+      - VNC_RESOLUTION=1440x900
+      - VNC_COL_DEPTH=24
+    shm_size: 512m
+    restart: unless-stopped
+    volumes:
+      - vnc-home:/home/headless
+    stdin_open: true
+    tty: true
+
+volumes:
+  vnc-home:

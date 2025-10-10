@@ -1,0 +1,25 @@
+[project]
+name = "vnc-use"
+version = "0.1.0"
+description = "LangGraph agent for Computer Use via VNC with Gemini 2.5"
+readme = "README.md"
+authors = [
+    { name = "Johann-Peter Hartmann", email = "johann-peter.hartmann@mayflower.de" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "langgraph>=0.2",
+    "langgraph-checkpoint-sqlite>=1.0",
+    "google-genai>=0.3",
+    "vncdotool>=1.2",
+    "pillow>=10.0",
+    "typing-extensions>=4.8",
+    "pydantic>=2.0",
+]
+
+[project.scripts]
+vnc-use = "vnc_use.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

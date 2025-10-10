@@ -1,0 +1,17 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Test artifacts
+test_screenshot*.png
+runs/
+
+# CLAUDE.md should not be committed
+CLAUDE.md
