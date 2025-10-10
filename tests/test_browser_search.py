@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Test browser-based Google search.
+"""Test browser-based navigation to Mayflower blog and headline extraction.
 
 Usage:
     docker-compose up -d
-    GEMINI_API_KEY=your_key python test_browser_search.py
+    GEMINI_API_KEY=your_key python tests/test_browser_search.py
 """
 
 import logging
@@ -13,10 +13,10 @@ import sys
 from src.vnc_use import VncUseAgent
 
 
-def test_google_search():
-    """Test opening browser, searching Google, and extracting first result URL."""
+def test_mayflower_blog_headlines():
+    """Test opening browser, visiting blog.mayflower.de, and extracting headlines."""
     print("\n" + "=" * 70)
-    print("Testing: Browser Search for 'computer use anthropic'")
+    print("Testing: Visit blog.mayflower.de and Get Latest Headlines")
     print("=" * 70)
 
     # Check prerequisites
@@ -38,21 +38,21 @@ def test_google_search():
     agent = VncUseAgent(
         vnc_server="localhost::5901",
         vnc_password="vncpassword",
-        step_limit=20,  # Allow more steps for this complex task
+        step_limit=25,  # Allow enough steps for browser navigation
         seconds_timeout=300,  # 5 minutes
         hitl_mode=False,  # No human intervention
     )
     print("   ✓ Agent initialized")
 
-    print("\n2. Running search task...")
-    print("   Task: Open browser, search for 'computer use anthropic', get first URL")
+    print("\n2. Running blog headline extraction task...")
+    print("   Task: Navigate to blog.mayflower.de and extract recent headlines")
 
     # Create detailed task instructions
     task = """Open a web browser (if not already open).
-Navigate to Google.com.
-Search for "computer use anthropic".
-After the search results appear, identify and report the URL of the first search result.
-The URL should be the actual destination URL, not the Google redirect link."""
+Navigate to blog.mayflower.de.
+Wait for the page to load completely.
+Look at the blog posts on the page and identify the headlines or titles of the most recent blog posts.
+Report the first 3-5 blog post headlines you can see."""
 
     try:
         result = agent.run(task)
@@ -69,16 +69,16 @@ The URL should be the actual destination URL, not the Google redirect link."""
         final_state = result.get("final_state", {})
         steps = final_state.get("step", 0)
 
-        if result.get("success") and steps >= 3:
+        if result.get("success") and steps >= 5:
             print("\n✓ Test completed!")
             print(f"  The agent executed {steps} steps.")
             print(f"  Check the run artifacts for screenshots: {result.get('run_dir')}")
-            print("\nNote: Due to the nature of Computer Use, the agent may have")
-            print("encountered token limits. Check the screenshots in the run directory")
-            print("to see how far it got and what actions it performed.")
+            print("  Look at the EXECUTION_REPORT.md for the extracted headlines")
+            print("\nNote: The agent should have navigated to blog.mayflower.de")
+            print("and attempted to read the blog post headlines from the page.")
             return True
         print("\n⚠ Test incomplete")
-        print(f"  Only {steps} steps completed (expected at least 3)")
+        print(f"  Only {steps} steps completed (expected at least 5)")
         if result.get("error"):
             print(f"  Error: {result.get('error')}")
         return False
@@ -93,19 +93,18 @@ The URL should be the actual destination URL, not the Google redirect link."""
 
 def main():
     print("=" * 70)
-    print("Google Search Test for VNC Computer Use Agent")
+    print("Mayflower Blog Headlines Test for VNC Computer Use Agent")
     print("=" * 70)
     print("\nThis test will:")
     print("  1. Open a browser in the VNC desktop")
-    print("  2. Navigate to Google")
-    print("  3. Search for 'computer use anthropic'")
-    print("  4. Attempt to extract the first result URL")
-    print("\nNote: Due to Gemini API token limits (131K), the agent may")
-    print("complete only a few steps before hitting limits. This is a known")
-    print("limitation when using high-resolution screenshots.")
+    print("  2. Navigate to blog.mayflower.de")
+    print("  3. Wait for page to load")
+    print("  4. Extract and report the latest blog post headlines")
+    print("\nNote: The agent will use Computer Use to visually identify")
+    print("and read headlines from the blog page.")
     print("=" * 70)
 
-    success = test_google_search()
+    success = test_mayflower_blog_headlines()
 
     print("\n" + "=" * 70)
     if success:

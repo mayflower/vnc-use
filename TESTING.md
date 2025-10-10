@@ -50,13 +50,19 @@ uv run python tests/test_gemini_wrapper.py --with-api
 #### End-to-End Tests
 
 ```bash
-# Simple desktop task
 export GOOGLE_API_KEY=your_key
 docker-compose up -d
+
+# Simple desktop task
 uv run python tests/test_e2e.py --test simple
 
-# Browser search task
+# Browser task - Navigate to Mayflower blog and extract headlines
 uv run python tests/test_browser_search.py
+
+# Shell command tests - Use terminal to check system information
+uv run python tests/test_shell_commands.py --test df    # Check disk space
+uv run python tests/test_shell_commands.py --test free  # Check memory usage
+uv run python tests/test_shell_commands.py --test all   # Run both
 ```
 
 #### Using pytest (Recommended)
@@ -78,7 +84,32 @@ uv run pytest -v
 uv run pytest tests/test_vnc_backend.py::test_coordinate_denormalization
 ```
 
-### 4. Stop the Container
+### 4. Test Descriptions
+
+#### Browser Automation Test (`test_browser_search.py`)
+This test demonstrates the agent's ability to:
+- Open a web browser in the VNC desktop
+- Navigate to blog.mayflower.de
+- Wait for the page to load completely
+- Visually identify and read blog post headlines
+- Extract and report the latest 3-5 headlines
+
+This replaces the previous Google search test and shows the agent can navigate to specific websites and extract content.
+
+#### Shell Command Tests (`test_shell_commands.py`)
+These tests demonstrate the agent's ability to:
+- Open a terminal application in the desktop environment
+- Type shell commands (df, free)
+- Execute commands by pressing Enter
+- Read and interpret command output
+- Report system information
+
+Available tests:
+- `--test df`: Check disk space usage with `df -h`
+- `--test free`: Check memory usage with `free -h`
+- `--test all`: Run both disk and memory tests
+
+### 5. Stop the Container
 
 ```bash
 docker-compose down

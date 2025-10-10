@@ -282,12 +282,23 @@ uv run python tests/test_gemini_wrapper.py
 GOOGLE_API_KEY=key uv run python tests/test_gemini_wrapper.py --with-api
 ```
 
-### End-to-End Test
+### End-to-End Tests
 
 ```bash
 # Requires GOOGLE_API_KEY and running VNC
 docker-compose up -d
+
+# Simple desktop task
 GOOGLE_API_KEY=key uv run python tests/test_e2e.py --test simple
+
+# Browser task - Visit Mayflower blog and extract headlines
+GOOGLE_API_KEY=key uv run python tests/test_browser_search.py
+
+# Shell command task - Use terminal to check disk space
+GOOGLE_API_KEY=key uv run python tests/test_shell_commands.py --test df
+
+# Memory usage check
+GOOGLE_API_KEY=key uv run python tests/test_shell_commands.py --test free
 ```
 
 ### Using pytest
@@ -324,7 +335,8 @@ vnc-use/
 │   ├── test_vnc_backend.py      # VNC tests
 │   ├── test_gemini_wrapper.py   # Gemini tests
 │   ├── test_e2e.py              # E2E tests
-│   ├── test_browser_search.py   # Browser automation tests
+│   ├── test_browser_search.py   # Browser automation tests (Mayflower blog)
+│   ├── test_shell_commands.py   # Shell command integration tests (df, free)
 │   └── test_mcp_server.py       # MCP server tests
 ├── docker-compose.yml           # Test VNC desktop
 ├── pyproject.toml               # Package configuration
