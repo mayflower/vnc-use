@@ -91,6 +91,27 @@ print(f"Success: {result['success']}")
 print(f"Artifacts: {result['run_dir']}")
 ```
 
+**MCP Server:**
+```bash
+# Start the MCP server
+export GOOGLE_API_KEY=your_google_api_key
+uv run vnc-use-mcp
+
+# Connect from MCP client (Python example)
+from fastmcp import Client
+
+async with Client("http://localhost:8000/mcp") as client:
+    result = await client.call_tool(
+        "execute_vnc_task",
+        {
+            "vnc_server": "localhost::5901",
+            "vnc_password": "vncpassword",
+            "task": "Open browser and search for LangGraph",
+        }
+    )
+    print(result)
+```
+
 ## Supported Actions
 
 The agent supports these Computer Use actions (mapped to VNC operations):
@@ -107,6 +128,86 @@ The agent supports these Computer Use actions (mapped to VNC operations):
 ### Coordinate System
 
 All coordinates from Gemini are **normalized to 0-999** (1000x1000 reference grid) and automatically converted to pixels based on the current screenshot dimensions.
+
+## MCP Server
+
+The VNC Computer Use agent can be run as a Model Context Protocol (MCP) server, enabling integration with MCP clients and providing streaming progress updates, observations, and screenshots.
+
+### Starting the MCP Server
+
+```bash
+# Start server on localhost:8000 (default)
+export GOOGLE_API_KEY=your_google_api_key
+uv run vnc-use-mcp
+
+# Configure host and port via environment variables
+export MCP_HOST=0.0.0.0  # Expose to network (security warning!)
+export MCP_PORT=9000
+uv run vnc-use-mcp
+```
+
+### MCP Tool: `execute_vnc_task`
+
+The server exposes a single tool for executing VNC tasks:
+
+**Parameters:**
+- `vnc_server` (required): VNC server address (e.g., "localhost::5901")
+- `task` (required): Task description to execute
+- `vnc_password` (optional): VNC password
+- `step_limit` (optional): Maximum steps (default: 40)
+- `timeout` (optional): Timeout in seconds (default: 300)
+
+**Returns:**
+```json
+{
+  "success": true,
+  "run_id": "20251010_153334_96982a39",
+  "run_dir": "runs/20251010_153334_96982a39",
+  "steps": 12,
+  "error": null
+}
+```
+
+### Streaming Updates
+
+The MCP server streams real-time updates during execution:
+- **Progress notifications**: Step count and current action
+- **Model observations**: What the agent sees and thinks
+- **Compressed screenshots**: 256px width images at each step
+- **Action results**: Execution status of each action
+
+### MCP Client Example
+
+```python
+from fastmcp import Client
+
+async def run_task():
+    async with Client("http://localhost:8000/mcp") as client:
+        # List available tools
+        tools = await client.list_tools()
+        print(f"Available tools: {[t.name for t in tools]}")
+
+        # Execute VNC task with streaming
+        result = await client.call_tool(
+            "execute_vnc_task",
+            {
+                "vnc_server": "localhost::5901",
+                "vnc_password": "vncpassword",
+                "task": "Open the browser and search for Python MCP",
+                "step_limit": 30,
+            }
+        )
+
+        print(f"Task completed: {result}")
+        print(f"Artifacts saved to: {result['run_dir']}")
+```
+
+### Security Considerations
+
+- **Default binding**: The server binds to `127.0.0.1` (localhost only) by default
+- **Network exposure**: Set `MCP_HOST=0.0.0.0` to expose externally (use with caution)
+- **No authentication**: The server does not implement authentication (add reverse proxy if needed)
+- **API keys**: GOOGLE_API_KEY is required and should be kept secure
 
 ## Configuration
 
@@ -213,6 +314,8 @@ vnc-use/
 │   ├── safety.py            # HITL handling
 │   ├── logging_utils.py     # Run artifacts
 │   ├── cli.py               # CLI entrypoint
+│   ├── mcp_server.py        # MCP server implementation
+│   ├── mcp_cli.py           # MCP server CLI entrypoint
 │   ├── backends/
 │   │   └── vnc.py           # VNC controller
 │   └── planners/
@@ -221,7 +324,8 @@ vnc-use/
 │   ├── test_vnc_backend.py      # VNC tests
 │   ├── test_gemini_wrapper.py   # Gemini tests
 │   ├── test_e2e.py              # E2E tests
-│   └── test_browser_search.py   # Browser automation tests
+│   ├── test_browser_search.py   # Browser automation tests
+│   └── test_mcp_server.py       # MCP server tests
 ├── docker-compose.yml           # Test VNC desktop
 ├── pyproject.toml               # Package configuration
 ├── LICENSE                      # MIT license
