@@ -2,26 +2,41 @@
 
 ## Quick Start with Docker
 
-### 1. Start the VNC Desktop Container
+### 1. Configure Environment
 
 ```bash
-docker-compose up -d
+# Copy example environment file
+cp .env.example .env
+
+# Edit .env and set your GOOGLE_API_KEY
+# GOOGLE_API_KEY=your_google_api_key_here
 ```
 
-This starts an Ubuntu desktop with XFCE and Chromium, accessible via VNC.
+### 2. Start All Services
 
-### 2. Access the Desktop
+```bash
+# Start VNC desktop and MCP server
+docker-compose up -d
 
-**Option A: Web Browser (noVNC)**
-- Open http://localhost:6901
-- Password: `vncpassword`
-- Click "Connect"
+# Check services are running
+docker-compose ps
+```
 
-**Option B: VNC Client**
-- Connect to `localhost:5901`
-- Password: `vncpassword`
+This starts:
+- Ubuntu desktop with XFCE and Chromium (accessible via VNC)
+- MCP server with streaming HTTP transport at http://localhost:8001/mcp
 
-### 3. Run the Tests
+### 3. Access the Services
+
+**VNC Desktop:**
+- Web Browser (noVNC): http://localhost:6901 (password: `vncpassword`)
+- VNC Client: `localhost:5901` (password: `vncpassword`)
+
+**MCP Server:**
+- HTTP endpoint: http://localhost:8001/mcp
+- Logs: `docker-compose logs -f mcp-server`
+
+### 4. Run the Tests
 
 #### VNC Backend Tests
 
@@ -84,7 +99,43 @@ uv run pytest -v
 uv run pytest tests/test_vnc_backend.py::test_coordinate_denormalization
 ```
 
-### 4. Test Descriptions
+### 5. Test the MCP Server
+
+**Check MCP Server Status:**
+```bash
+# View MCP server logs
+docker-compose logs -f mcp-server
+
+# Test MCP server health
+curl http://localhost:8001/mcp
+```
+
+**Test with MCP Client:**
+```python
+# test_mcp_client.py
+import asyncio
+from fastmcp import Client
+
+async def test():
+    async with Client("http://localhost:8001/mcp") as client:
+        tools = await client.list_tools()
+        print(f"Available tools: {[t.name for t in tools]}")
+
+        result = await client.call_tool(
+            "execute_vnc_task",
+            {
+                "vnc_server": "vnc-desktop::5901",
+                "vnc_password": "vncpassword",
+                "task": "Click on the desktop",
+                "step_limit": 5,
+            }
+        )
+        print(f"Result: {result}")
+
+asyncio.run(test())
+```
+
+### 6. Test Descriptions
 
 #### Browser Automation Test (`test_browser_search.py`)
 This test demonstrates the agent's ability to:
@@ -109,7 +160,7 @@ Available tests:
 - `--test free`: Check memory usage with `free -h`
 - `--test all`: Run both disk and memory tests
 
-### 5. Stop the Container
+### 7. Stop the Containers
 
 ```bash
 docker-compose down

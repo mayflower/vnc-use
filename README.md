@@ -54,20 +54,46 @@ pip install -e .
 
 ## Quick Start
 
-### 1. Start VNC Desktop (Docker)
+### 1. Configure Environment Variables
 
 ```bash
-docker-compose up -d
-# Accessible at http://localhost:6901 (password: vncpassword)
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env and add your Google API key
+# GOOGLE_API_KEY=your_google_api_key_here
 ```
 
-### 2. Set API Key
+### 2. Start Services with Docker
 
 ```bash
+# Start both VNC desktop and MCP server
+docker-compose up -d
+
+# Check services are running
+docker-compose ps
+```
+
+**Available services:**
+- VNC Desktop (web): http://localhost:6901 (password: vncpassword)
+- VNC Desktop (VNC): localhost:5901
+- MCP Server: http://localhost:8001/mcp
+
+### 3. Run a Task with Docker
+
+**Using the MCP Server:**
+```bash
+# The MCP server is now running at http://localhost:8001/mcp
+# Use any MCP client to connect and call the execute_vnc_task tool
+```
+
+**Using Python API (local):**
+```bash
+# If running locally without Docker, set API key
 export GOOGLE_API_KEY=your_google_api_key
 ```
 
-### 3. Run a Task
+### 4. Run Tasks
 
 **CLI:**
 ```bash
@@ -100,7 +126,7 @@ uv run vnc-use-mcp
 # Connect from MCP client (Python example)
 from fastmcp import Client
 
-async with Client("http://localhost:8000/mcp") as client:
+async with Client("http://localhost:8001/mcp") as client:
     result = await client.call_tool(
         "execute_vnc_task",
         {
@@ -135,8 +161,21 @@ The VNC Computer Use agent can be run as a Model Context Protocol (MCP) server, 
 
 ### Starting the MCP Server
 
+**With Docker (Recommended):**
 ```bash
-# Start server on localhost:8000 (default)
+# Configure .env file with your API key
+cp .env.example .env
+# Edit .env and set GOOGLE_API_KEY=your_key
+
+# Start all services (VNC + MCP server)
+docker-compose up -d
+
+# MCP server available at http://localhost:8001/mcp
+```
+
+**Without Docker (Local):**
+```bash
+# Start server on localhost:8001 (default)
 export GOOGLE_API_KEY=your_google_api_key
 uv run vnc-use-mcp
 
@@ -178,20 +217,22 @@ The MCP server streams real-time updates during execution:
 
 ### MCP Client Example
 
+**Connecting to Docker MCP Server:**
 ```python
 from fastmcp import Client
 
 async def run_task():
-    async with Client("http://localhost:8000/mcp") as client:
+    async with Client("http://localhost:8001/mcp") as client:
         # List available tools
         tools = await client.list_tools()
         print(f"Available tools: {[t.name for t in tools]}")
 
         # Execute VNC task with streaming
+        # Note: Use 'vnc-desktop::5901' when connecting from within Docker network
         result = await client.call_tool(
             "execute_vnc_task",
             {
-                "vnc_server": "localhost::5901",
+                "vnc_server": "vnc-desktop::5901",  # Docker service name
                 "vnc_password": "vncpassword",
                 "task": "Open the browser and search for Python MCP",
                 "step_limit": 30,
@@ -201,6 +242,8 @@ async def run_task():
         print(f"Task completed: {result}")
         print(f"Artifacts saved to: {result['run_dir']}")
 ```
+
+**Note:** When the MCP server runs in Docker, it uses the internal Docker network. The VNC server is accessible at `vnc-desktop::5901` (service name) from within the Docker network.
 
 ### Security Considerations
 

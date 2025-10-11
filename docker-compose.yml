@@ -17,6 +17,33 @@ services:
       - vnc-home:/home/headless
     stdin_open: true
     tty: true
+    networks:
+      - vnc-network
+
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vnc-use-mcp-server
+    ports:
+      - "8001:8000"  # MCP HTTP streaming server
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - MCP_HOST=${MCP_HOST:-0.0.0.0}
+      - MCP_PORT=${MCP_PORT:-8000}
+    volumes:
+      - ./runs:/app/runs  # Mount runs directory for artifacts
+    depends_on:
+      - vnc-desktop
+    restart: unless-stopped
+    networks:
+      - vnc-network
+    command: python -m vnc_use.mcp_cli
 
 volumes:
   vnc-home:
+
+networks:
+  vnc-network:
+    driver: bridge

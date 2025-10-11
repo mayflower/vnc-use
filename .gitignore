@@ -13,5 +13,8 @@ wheels/
 test_screenshot*.png
 runs/
 
+# Environment variables
+.env
+
 # CLAUDE.md should not be committed
 CLAUDE.md
