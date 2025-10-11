@@ -143,13 +143,25 @@ async with Client("http://localhost:8001/mcp") as client:
 The agent supports these Computer Use actions (mapped to VNC operations):
 
 - `click_at(x, y)` - Click at normalized coordinates
+- `double_click_at(x, y)` - Double-click at coordinates (for launching apps)
 - `hover_at(x, y)` - Hover at coordinates
 - `type_text_at(x, y, text, press_enter?, clear_before_typing?)` - Type text
 - `key_combination(keys)` - Press keyboard shortcuts (e.g., "ctrl+a")
 - `scroll_document(direction, magnitude)` - Scroll page
 - `scroll_at(x, y, direction, magnitude)` - Scroll at location
 - `drag_and_drop(x, y, destination_x, destination_y)` - Drag and drop
-- `open_web_browser` - No-op placeholder
+- `wait_5_seconds()` - Wait 5 seconds (useful for page loads)
+
+### Excluded Actions (by default)
+
+The following browser-specific actions are **excluded by default** because they require direct browser API access and cannot be reliably implemented via VNC mouse/keyboard simulation:
+
+- `open_web_browser` - Use generic click/type actions to launch browsers from desktop
+- `navigate` - Click URL bar and type URLs instead
+- `go_back`, `go_forward` - Click browser navigation buttons instead
+- `search` - Type in search boxes instead
+
+You can override these exclusions by passing `excluded_actions=[]` when initializing the agent, though browser tasks are more reliably accomplished using the generic UI actions.
 
 ### Coordinate System
 
@@ -279,7 +291,7 @@ vnc-use run \
   --step-limit 50 \
   --timeout 600 \
   --no-hitl \
-  --excluded-actions open_web_browser \
+  --excluded-actions drag_and_drop \
   --verbose
 ```
 

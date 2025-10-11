@@ -70,7 +70,7 @@ Examples:
     parser.add_argument(
         "--excluded-actions",
         nargs="+",
-        help="Actions to exclude (e.g., open_web_browser)",
+        help="Actions to exclude (e.g., drag_and_drop)",
     )
     parser.add_argument(
         "--verbose",

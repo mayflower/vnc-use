@@ -3,6 +3,7 @@
 import io
 import logging
 import tempfile
+import time
 from pathlib import Path
 from typing import Literal
 
@@ -293,7 +294,14 @@ class VNCController:
             if action_name == "click_at":
                 px = denorm_x(args["x"], width)
                 py = denorm_y(args["y"], height)
-                self.click(px, py)
+                # Use double-click for VNC desktop - needed for launching apps/folders
+                self.double_click(px, py)
+
+            elif action_name == "double_click_at":
+                # Fallback for compatibility if model somehow calls this
+                px = denorm_x(args["x"], width)
+                py = denorm_y(args["y"], height)
+                self.double_click(px, py)
 
             elif action_name == "hover_at":
                 px = denorm_x(args["x"], width)
@@ -329,9 +337,9 @@ class VNCController:
                 y1 = denorm_y(args["destination_y"], height)
                 self.drag_and_drop(x0, y0, x1, y1)
 
-            elif action_name == "open_web_browser":
-                # No-op: rely on user's VM having browser available
-                logger.info("open_web_browser: no-op (rely on pinned browser)")
+            elif action_name == "wait_5_seconds":
+                logger.info("Waiting 5 seconds...")
+                time.sleep(5)
 
             else:
                 raise ValueError(f"Unknown action: {action_name}")

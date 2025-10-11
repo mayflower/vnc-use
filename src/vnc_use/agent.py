@@ -40,7 +40,10 @@ class VncUseAgent:
             vnc_server: VNC server address
             vnc_password: VNC password
             screen_size: Default screen size (auto-detected from screenshots)
-            excluded_actions: Actions to exclude from Computer Use tool
+            excluded_actions: Actions to exclude from Computer Use tool.
+                Defaults to excluding browser-specific actions (open_web_browser,
+                navigate, go_back, go_forward, search) that cannot be reliably
+                implemented via VNC mouse/keyboard simulation.
             step_limit: Maximum number of steps
             seconds_timeout: Wall-clock timeout in seconds
             hitl_mode: Enable human-in-the-loop for safety
@@ -52,6 +55,16 @@ class VncUseAgent:
         self.step_limit = step_limit
         self.seconds_timeout = seconds_timeout
         self.hitl_mode = hitl_mode
+
+        # Default exclusions for browser-specific actions we cannot implement via VNC
+        if excluded_actions is None:
+            excluded_actions = [
+                "open_web_browser",  # Cannot reliably implement via desktop clicking
+                "navigate",  # Requires browser URL bar API
+                "go_back",  # Requires browser history API
+                "go_forward",  # Requires browser history API
+                "search",  # Requires browser search API
+            ]
 
         # Initialize components
         self.vnc = VNCController()

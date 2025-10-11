@@ -42,7 +42,7 @@ def test_config_building():
     print("\n=== Testing Config Building ===")
 
     planner = GeminiComputerUse(
-        excluded_actions=["open_web_browser"],
+        excluded_actions=["drag_and_drop"],
         include_thoughts=False,
         api_key="fake_key_for_testing",
     )
@@ -52,7 +52,7 @@ def test_config_building():
     assert config is not None, "Config should not be None"
     assert len(config.tools) == 1, "Should have one tool"
     assert config.tools[0].computer_use is not None, "Should have computer_use tool"
-    assert "open_web_browser" in config.tools[0].computer_use.excluded_predefined_functions, (
+    assert "drag_and_drop" in config.tools[0].computer_use.excluded_predefined_functions, (
         "Should exclude specified actions"
     )
     assert config.thinking_config.include_thoughts == False, "Should not include thoughts"
