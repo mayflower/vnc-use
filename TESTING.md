@@ -110,7 +110,20 @@ docker-compose logs -f mcp-server
 curl http://localhost:8001/mcp
 ```
 
-**Test with MCP Client:**
+**Run MCP HTTP Integration Test:**
+```bash
+# Full integration test: Get heise.de news via MCP server
+python tests/test_mcp_http_heise.py
+```
+
+This test demonstrates:
+- Connecting to MCP server via HTTP
+- Calling execute_vnc_task tool with streaming
+- Opening browser and navigating to heise.de
+- Extracting news headlines
+- Viewing results in execution report
+
+**Test with Custom MCP Client:**
 ```python
 # test_mcp_client.py
 import asyncio
@@ -136,6 +149,18 @@ asyncio.run(test())
 ```
 
 ### 6. Test Descriptions
+
+#### MCP HTTP Integration Test (`test_mcp_http_heise.py`)
+This test demonstrates the complete MCP server stack:
+- Connecting to MCP server via HTTP streaming transport (port 8001)
+- Discovering available tools (execute_vnc_task)
+- Calling the MCP tool with parameters (VNC server, task, limits)
+- Agent opening browser and navigating to heise.de
+- Extracting news headlines from the website
+- Receiving streaming progress updates during execution
+- Viewing execution artifacts in run directory
+
+This is a full end-to-end test of the Docker-based MCP server communicating with the VNC desktop over the internal Docker network.
 
 #### Browser Automation Test (`test_browser_search.py`)
 This test demonstrates the agent's ability to:

@@ -342,6 +342,9 @@ GOOGLE_API_KEY=key uv run python tests/test_shell_commands.py --test df
 
 # Memory usage check
 GOOGLE_API_KEY=key uv run python tests/test_shell_commands.py --test free
+
+# MCP HTTP test - Get heise.de news via MCP server
+python tests/test_mcp_http_heise.py
 ```
 
 ### Using pytest
@@ -380,7 +383,8 @@ vnc-use/
 │   ├── test_e2e.py              # E2E tests
 │   ├── test_browser_search.py   # Browser automation tests (Mayflower blog)
 │   ├── test_shell_commands.py   # Shell command integration tests (df, free)
-│   └── test_mcp_server.py       # MCP server tests
+│   ├── test_mcp_server.py       # MCP server tests
+│   └── test_mcp_http_heise.py   # MCP HTTP integration test (heise.de news)
 ├── docker-compose.yml           # Test VNC desktop
 ├── pyproject.toml               # Package configuration
 ├── LICENSE                      # MIT license
