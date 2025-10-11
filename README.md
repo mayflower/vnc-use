@@ -169,32 +169,83 @@ All coordinates from Gemini are **normalized to 0-999** (1000x1000 reference gri
 
 ## MCP Server
 
-The VNC Computer Use agent can be run as a Model Context Protocol (MCP) server, enabling integration with MCP clients and providing streaming progress updates, observations, and screenshots.
+The VNC Computer Use agent can be run as a Model Context Protocol (MCP) server, enabling integration with MCP clients and providing streaming progress updates, observations, and screenshots during execution.
+
+### Quick Start
+
+**1. Start the services:**
+```bash
+# Configure your API key
+cp .env.example .env
+# Edit .env and set GOOGLE_API_KEY=your_google_api_key
+
+# Start VNC desktop + MCP server
+docker-compose up -d
+
+# Verify services are running
+docker-compose ps
+# Should show:
+#   vnc-use-test-desktop  - VNC desktop (ports 5901, 6901)
+#   vnc-use-mcp-server    - MCP server (port 8001)
+```
+
+**2. Test the MCP server:**
+```bash
+# View VNC desktop in browser
+open http://localhost:6901  # Password: vncpassword
+
+# MCP server endpoint
+curl http://localhost:8001/mcp
+```
+
+**3. Use from Python client:**
+```python
+import asyncio
+from fastmcp import Client
+
+async def main():
+    async with Client("http://localhost:8001/mcp") as client:
+        result = await client.call_tool(
+            "execute_vnc_task",
+            {
+                "vnc_server": "vnc-desktop::5901",  # Docker service name
+                "vnc_password": "vncpassword",
+                "task": "Open the browser and go to example.com",
+                "step_limit": 20,
+            }
+        )
+        print(f"Success: {result.content[0].text}")
+
+asyncio.run(main())
+```
 
 ### Starting the MCP Server
 
 **With Docker (Recommended):**
 ```bash
-# Configure .env file with your API key
-cp .env.example .env
-# Edit .env and set GOOGLE_API_KEY=your_key
-
 # Start all services (VNC + MCP server)
 docker-compose up -d
 
 # MCP server available at http://localhost:8001/mcp
+# VNC desktop accessible at vnc-desktop::5901 (inside Docker network)
+
+# View logs
+docker-compose logs -f mcp-server
+
+# Stop services
+docker-compose down
 ```
 
-**Without Docker (Local):**
+**Without Docker (Local VNC):**
 ```bash
-# Start server on localhost:8001 (default)
+# Start your own VNC server first, then:
 export GOOGLE_API_KEY=your_google_api_key
+export MCP_HOST=127.0.0.1  # localhost only (default)
+export MCP_PORT=8001       # default port
 uv run vnc-use-mcp
 
-# Configure host and port via environment variables
-export MCP_HOST=0.0.0.0  # Expose to network (security warning!)
-export MCP_PORT=9000
-uv run vnc-use-mcp
+# MCP server available at http://localhost:8001/mcp
+# Connect to your VNC server at localhost::5901
 ```
 
 ### MCP Tool: `execute_vnc_task`
@@ -227,35 +278,135 @@ The MCP server streams real-time updates during execution:
 - **Compressed screenshots**: 256px width images at each step
 - **Action results**: Execution status of each action
 
-### MCP Client Example
+### MCP Client Examples
 
-**Connecting to Docker MCP Server:**
+**Basic Example - Browser Navigation:**
 ```python
+import asyncio
+import json
 from fastmcp import Client
 
-async def run_task():
+async def browse_website():
+    """Navigate to a website and extract information."""
     async with Client("http://localhost:8001/mcp") as client:
-        # List available tools
+        # Discover available tools
         tools = await client.list_tools()
-        print(f"Available tools: {[t.name for t in tools]}")
+        print(f"Available: {[t.name for t in tools]}")
 
-        # Execute VNC task with streaming
-        # Note: Use 'vnc-desktop::5901' when connecting from within Docker network
+        # Execute task
         result = await client.call_tool(
             "execute_vnc_task",
             {
-                "vnc_server": "vnc-desktop::5901",  # Docker service name
+                "vnc_server": "vnc-desktop::5901",
                 "vnc_password": "vncpassword",
-                "task": "Open the browser and search for Python MCP",
+                "task": "Open browser and go to python.org. Tell me the latest Python version shown on the homepage.",
+                "step_limit": 20,
+                "timeout": 120,
+            }
+        )
+
+        # Parse result
+        data = json.loads(result.content[0].text)
+        print(f"\n{'='*70}")
+        print(f"Success: {data['success']}")
+        print(f"Steps taken: {data['steps']}")
+        print(f"Run directory: {data['run_dir']}")
+        if data.get('error'):
+            print(f"Error: {data['error']}")
+        print(f"{'='*70}")
+
+        return data
+
+asyncio.run(browse_website())
+```
+
+**Advanced Example - Web Scraping:**
+```python
+async def scrape_news():
+    """Extract news headlines from a website."""
+    async with Client("http://localhost:8001/mcp") as client:
+        task = """
+        Open a web browser and navigate to a tech news site.
+        Find the top 3 news headlines on the page.
+        Report the headlines as a numbered list.
+        """
+
+        result = await client.call_tool(
+            "execute_vnc_task",
+            {
+                "vnc_server": "vnc-desktop::5901",
+                "vnc_password": "vncpassword",
+                "task": task,
                 "step_limit": 30,
             }
         )
 
-        print(f"Task completed: {result}")
-        print(f"Artifacts saved to: {result['run_dir']}")
+        data = json.loads(result.content[0].text)
+
+        # Check screenshots
+        if data['success']:
+            print(f"✓ Task completed in {data['steps']} steps")
+            print(f"Check execution report:")
+            print(f"  cat {data['run_dir']}/EXECUTION_REPORT.md")
+
+asyncio.run(scrape_news())
 ```
 
-**Note:** When the MCP server runs in Docker, it uses the internal Docker network. The VNC server is accessible at `vnc-desktop::5901` (service name) from within the Docker network.
+**Network Configuration:**
+
+When the MCP server runs in Docker:
+- **Inside Docker network**: Use `vnc-desktop::5901` (service name)
+- **From host machine**: Use `localhost::5901` (if you expose VNC port)
+
+The MCP server (in Docker) connects to VNC via internal Docker network, so always use `vnc-desktop::5901` as the `vnc_server` parameter.
+
+### Troubleshooting MCP Server
+
+**Service not starting:**
+```bash
+# Check Docker services status
+docker-compose ps
+
+# View logs
+docker-compose logs mcp-server
+docker-compose logs vnc-desktop
+
+# Restart services
+docker-compose restart
+```
+
+**Connection refused:**
+```bash
+# Verify MCP server is listening
+curl http://localhost:8001/mcp
+
+# Check port is not already in use
+lsof -i :8001
+
+# Try rebuilding containers
+docker-compose down
+docker-compose up -d --build
+```
+
+**Task fails immediately:**
+- Check GOOGLE_API_KEY is set correctly in `.env`
+- Verify VNC desktop is running: `docker-compose ps`
+- Test VNC access in browser: http://localhost:6901
+- Check MCP server logs: `docker-compose logs mcp-server`
+
+**Desktop state persists between runs:**
+```bash
+# Restart VNC desktop for clean state
+docker-compose restart vnc-desktop
+sleep 10  # Wait for desktop to be ready
+```
+
+**Accessing screenshots and reports:**
+```bash
+# Screenshots are saved in the runs/ directory (volume-mounted from container)
+ls runs/
+cat runs/LATEST_RUN_ID/EXECUTION_REPORT.md
+```
 
 ### Security Considerations
 
@@ -263,6 +414,7 @@ async def run_task():
 - **Network exposure**: Set `MCP_HOST=0.0.0.0` to expose externally (use with caution)
 - **No authentication**: The server does not implement authentication (add reverse proxy if needed)
 - **API keys**: GOOGLE_API_KEY is required and should be kept secure
+- **VNC password**: Default is `vncpassword` - change in docker-compose.yml for production
 
 ## Configuration
 
