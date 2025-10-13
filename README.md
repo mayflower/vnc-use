@@ -8,11 +8,13 @@ A Python package that enables autonomous desktop interaction through VNC using G
 
 - **Direct screenshot grounding** - No OCR, no template matching (per Computer Use design)
 - **Generic desktop automation** - Works with any VNC-accessible desktop
+- **Secure credential management** - Multi-tenant support with OS keyring, .netrc, or environment variables
 - **Safety-first HITL** - Optional human-in-the-loop gates for risky actions
 - **Coordinate denormalization** - Handles any screen resolution
 - **LangGraph orchestration** - Stateless vision architecture for efficient token usage
 - **Structured logging** - Full run artifacts with screenshots at each step
 - **Markdown execution reports** - Human-readable reports with embedded screenshots showing what the agent saw, thought, and did
+- **MCP server** - FastMCP 2.0 streaming server for AI agent integration
 
 ## Architecture
 
@@ -50,7 +52,15 @@ uv sync
 
 # Or with pip
 pip install -e .
+
+# Optional: Install OS keyring support for encrypted credential storage
+pip install -e ".[keyring]"
 ```
+
+**Dependencies:**
+- Python 3.10+
+- LangGraph, Google GenAI SDK, vncdotool, Pillow, FastMCP
+- Optional: `keyring` package for OS-encrypted credential storage
 
 ## Quick Start
 
@@ -104,9 +114,13 @@ uv run vnc-use run --task "Open a browser and search for LangGraph"
 ```python
 from vnc_use import VncUseAgent
 
+# First, configure credentials (one-time setup):
+# vnc-use-credentials set localhost --server localhost::5901 --password vncpassword
+
+# Then use the agent (credentials looked up automatically):
 agent = VncUseAgent(
     vnc_server="localhost::5901",
-    vnc_password="vncpassword",
+    vnc_password="vncpassword",  # Or omit if using credential store
     step_limit=40,
     seconds_timeout=300,
     hitl_mode=True,  # Enable safety confirmations
@@ -118,24 +132,26 @@ print(f"Artifacts: {result['run_dir']}")
 ```
 
 **MCP Server:**
-```bash
-# Start the MCP server
-export GOOGLE_API_KEY=your_google_api_key
-uv run vnc-use-mcp
+```python
+# Docker MCP server is pre-configured with vnc-desktop credentials
+# For custom servers, configure credentials first:
+# vnc-use-credentials set my-vnc --server my-vnc.example.com::5901
 
-# Connect from MCP client (Python example)
+import asyncio
 from fastmcp import Client
 
-async with Client("http://localhost:8001/mcp") as client:
-    result = await client.call_tool(
-        "execute_vnc_task",
-        {
-            "vnc_server": "localhost::5901",
-            "vnc_password": "vncpassword",
-            "task": "Open browser and search for LangGraph",
-        }
-    )
-    print(result)
+async def run_task():
+    async with Client("http://localhost:8001/mcp") as client:
+        result = await client.call_tool(
+            "execute_vnc_task",
+            {
+                "hostname": "vnc-desktop",  # Uses pre-configured Docker credentials
+                "task": "Open browser and search for LangGraph",
+            }
+        )
+        print(result.content[0].text)
+
+asyncio.run(run_task())
 ```
 
 ## Supported Actions
@@ -509,7 +525,7 @@ cat runs/LATEST_RUN_ID/EXECUTION_REPORT.md
 ```python
 VncUseAgent(
     vnc_server="localhost::5901",      # VNC server address
-    vnc_password=None,                 # VNC password (optional)
+    vnc_password=None,                 # VNC password (optional, see note below)
     screen_size=(1440, 900),           # Default size (auto-detected)
     excluded_actions=None,             # List of actions to exclude
     step_limit=40,                     # Max steps (guardrail)
@@ -518,6 +534,12 @@ VncUseAgent(
     api_key=None,                      # Google API key (or use env var)
 )
 ```
+
+**Note on credentials:** For production use, configure credentials using the credential management system:
+```bash
+vnc-use-credentials set localhost --server localhost::5901 --password your_password
+```
+Then the agent can look up credentials automatically. Direct password parameters are supported for backward compatibility and simple use cases.
 
 ### CLI Options
 
