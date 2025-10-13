@@ -518,6 +518,28 @@ cat runs/LATEST_RUN_ID/EXECUTION_REPORT.md
 - **API keys**: GOOGLE_API_KEY is required and should be kept secure
 - **VNC password**: Default is `vncpassword` - change in docker-compose.yml for production
 
+### Human-in-the-Loop (HITL) Safety
+
+The agent integrates Gemini's safety decision system with MCP's elicitation mechanism to enable **human approval for risky actions**:
+
+**How it works:**
+1. **Gemini detection**: When Gemini Computer Use model marks an action with `safety_decision.action = "require_confirmation"`, the agent pauses execution
+2. **MCP elicitation**: The MCP server uses FastMCP's `ctx.elicit()` to request user approval
+3. **User decision**: MCP client (Claude Desktop, IDE) prompts user to approve/decline/cancel
+4. **Execution continues**: Only proceeds if user explicitly approves
+
+**HITL is enabled by default** in MCP mode for safety. The system works at two levels:
+
+- **Gemini-level safety**: Model detects risky operations (e.g., system commands, destructive actions)
+- **MCP protocol-level**: Clients should implement additional approval UI per MCP specification
+
+**Example risky actions that trigger HITL:**
+- System-wide keyboard shortcuts (Ctrl+Alt+Delete)
+- Actions marked as sensitive by Gemini's safety system
+- Operations requiring explicit confirmation per model's judgment
+
+**For CLI usage**, HITL uses LangGraph interrupts instead of MCP elicitation. Disable with `--no-hitl` flag if needed.
+
 ## Configuration
 
 ### Agent Options

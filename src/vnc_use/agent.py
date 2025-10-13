@@ -1,7 +1,9 @@
 """LangGraph agent for VNC Computer Use."""
 
+import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
@@ -32,6 +34,7 @@ class VncUseAgent:
         step_limit: int = 40,
         seconds_timeout: int = 300,
         hitl_mode: bool = True,
+        hitl_callback: Callable[[dict, list], Awaitable[bool]] | None = None,
         api_key: str | None = None,
     ) -> None:
         """Initialize VNC Use Agent.
@@ -47,6 +50,9 @@ class VncUseAgent:
             step_limit: Maximum number of steps
             seconds_timeout: Wall-clock timeout in seconds
             hitl_mode: Enable human-in-the-loop for safety
+            hitl_callback: Optional async callback for HITL decisions.
+                Called with (safety_decision, pending_calls) and should return bool.
+                If not provided, uses LangGraph interrupt mechanism.
             api_key: Google API key (defaults to GOOGLE_API_KEY env)
         """
         self.vnc_server = vnc_server
@@ -55,6 +61,7 @@ class VncUseAgent:
         self.step_limit = step_limit
         self.seconds_timeout = seconds_timeout
         self.hitl_mode = hitl_mode
+        self.hitl_callback = hitl_callback
 
         # Default exclusions for browser-specific actions we cannot implement via VNC
         if excluded_actions is None:
@@ -318,24 +325,40 @@ class VncUseAgent:
         # Log the confirmation request
         self.hitl_gate.request_confirmation(safety, pending)
 
-        # Interrupt and wait for user decision
-        # In a real implementation, this would pause execution
-        # and allow user to call approve() or deny()
-        decision = interrupt(
-            {
-                "type": "hitl_confirmation",
-                "reason": safety.get("reason") if safety else "Unknown",
-                "pending_calls": pending,
-            }
-        )
+        # Use callback if provided, otherwise use LangGraph interrupt
+        if self.hitl_callback:
+            logger.debug("Using HITL callback for user decision")
+            try:
+                # Call async callback from sync context
+                approved = asyncio.run(self.hitl_callback(safety, pending))
 
-        # Process user decision
-        if decision == "deny":
-            logger.warning("User denied action")
-            return {"done": True, "error": "User denied action"}
+                if not approved:
+                    logger.warning("User denied action via callback")
+                    return {"done": True, "error": "User denied action"}
 
-        logger.info("User approved action")
-        return {}
+                logger.info("User approved action via callback")
+                return {}
+            except Exception as e:
+                logger.error(f"HITL callback failed: {e}")
+                return {"done": True, "error": f"HITL callback failed: {e}"}
+        else:
+            # Use LangGraph interrupt mechanism
+            logger.debug("Using LangGraph interrupt for user decision")
+            decision = interrupt(
+                {
+                    "type": "hitl_confirmation",
+                    "reason": safety.get("reason") if safety else "Unknown",
+                    "pending_calls": pending,
+                }
+            )
+
+            # Process user decision
+            if decision == "deny":
+                logger.warning("User denied action")
+                return {"done": True, "error": "User denied action"}
+
+            logger.info("User approved action")
+            return {}
 
     def _route_after_propose(self, state: CUAState) -> str:
         """Route after propose node.

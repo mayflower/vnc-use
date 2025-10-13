@@ -91,13 +91,65 @@ async def execute_vnc_task(
             await ctx.info(f"Found credentials for {hostname}")
             await ctx.info(f"Connecting to VNC server: {credentials.server}")
 
-        # Create agent with streaming support
+        # Create HITL callback for user approval via MCP elicitation
+        async def hitl_callback(safety_decision: dict, pending_calls: list) -> bool:
+            """Request user approval via MCP elicitation.
+
+            Args:
+                safety_decision: Gemini's safety decision
+                pending_calls: List of pending function calls
+
+            Returns:
+                True if user approved, False if denied
+            """
+            if not ctx:
+                # No context for elicitation, auto-approve
+                logger.warning("No MCP context for HITL, auto-approving")
+                return True
+
+            reason = (
+                safety_decision.get("reason", "Unknown reason")
+                if safety_decision
+                else "Unknown"
+            )
+            actions = ", ".join(call["name"] for call in pending_calls)
+
+            await ctx.info(f"⚠️  Safety confirmation required: {reason}")
+            await ctx.info(f"📋 Proposed actions: {actions}")
+
+            try:
+                result = await ctx.elicit(
+                    message=f"Safety confirmation required: {reason}\n"
+                    f"Proposed actions: {actions}\n"
+                    f"Approve execution?",
+                    response_type=None,  # Simple yes/no approval
+                )
+
+                if result.action == "accept":
+                    await ctx.info("✓ User approved action")
+                    return True
+                if result.action == "decline":
+                    await ctx.info("✗ User declined action")
+                    return False
+                # cancel
+                await ctx.info("✗ User cancelled operation")
+                return False
+
+            except Exception as e:
+                logger.error(f"Elicitation failed: {e}")
+                await ctx.info(f"✗ Approval request failed: {e}")
+                return False
+
+        # Create agent with HITL enabled and elicitation callback
         agent = VncUseAgent(
             vnc_server=credentials.server,
             vnc_password=credentials.password,
             step_limit=step_limit,
             seconds_timeout=timeout,
-            hitl_mode=False,  # No HITL in MCP mode
+            hitl_mode=True,  # Enable HITL for risky actions
+            hitl_callback=hitl_callback
+            if ctx
+            else None,  # Use elicitation when context available
         )
 
         # Monkey-patch agent nodes to add streaming
@@ -199,7 +251,11 @@ def _wrap_agent_for_streaming(
         import asyncio
 
         try:
-            asyncio.run(_async_progress(step, step_limit, f"Step {step}: Analyzing screenshot..."))
+            asyncio.run(
+                _async_progress(
+                    step, step_limit, f"Step {step}: Analyzing screenshot..."
+                )
+            )
         except Exception as e:
             logger.warning(f"Progress reporting failed: {e}")
 
@@ -211,8 +267,12 @@ def _wrap_agent_for_streaming(
         if observation:
             try:
                 # Truncate long observations
-                obs_preview = observation[:200] + "..." if len(observation) > 200 else observation
-                asyncio.run(_async_report(f"[Step {step}] Model observes: {obs_preview}"))
+                obs_preview = (
+                    observation[:200] + "..." if len(observation) > 200 else observation
+                )
+                asyncio.run(
+                    _async_report(f"[Step {step}] Model observes: {obs_preview}")
+                )
             except Exception as e:
                 logger.warning(f"Observation streaming failed: {e}")
 
@@ -261,7 +321,9 @@ def _wrap_agent_for_streaming(
                 args_str = ", ".join(f"{k}={v}" for k, v in args.items())
                 status = "✓" if "Success" in result_text else "✗"
                 asyncio.run(
-                    _async_report(f"[Step {step}] {status} Executed: {action_name}({args_str})")
+                    _async_report(
+                        f"[Step {step}] {status} Executed: {action_name}({args_str})"
+                    )
                 )
             except Exception as e:
                 logger.warning(f"Result streaming failed: {e}")
