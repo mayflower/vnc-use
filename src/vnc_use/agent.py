@@ -159,6 +159,8 @@ class VncUseAgent:
 
             # Extract safety decision
             safety_decision = self.planner.extract_safety_decision(response)
+            if safety_decision:
+                logger.info(f"Safety decision received: {safety_decision}")
 
             if not function_calls:
                 logger.info("No function calls - task complete")
