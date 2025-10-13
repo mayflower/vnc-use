@@ -2,6 +2,10 @@
 
 Provides a streaming MCP tool that executes tasks on VNC desktops,
 reporting progress, observations, and screenshots in real-time.
+
+Security: VNC credentials are stored securely using a credential store
+(OS keyring, .netrc file, or environment variables). Never pass passwords
+as tool parameters to avoid exposing them to LLMs.
 """
 
 import base64
@@ -11,6 +15,7 @@ from typing import Any
 from fastmcp import Context, FastMCP
 
 from .agent import VncUseAgent
+from .credential_store import get_default_store
 from .planners.gemini import compress_screenshot
 
 
@@ -19,12 +24,14 @@ logger = logging.getLogger(__name__)
 # Create MCP server instance
 mcp = FastMCP("VNC Computer Use Agent")
 
+# Initialize credential store
+credential_store = get_default_store()
+
 
 @mcp.tool()
 async def execute_vnc_task(
-    vnc_server: str,
+    hostname: str,
     task: str,
-    vnc_password: str | None = None,
     step_limit: int = 40,
     timeout: int = 300,
     ctx: Context | None = None,
@@ -35,10 +42,13 @@ async def execute_vnc_task(
     Gemini 2.5 Computer Use model, and streams progress updates, observations,
     and screenshots back to the client.
 
+    Security: Credentials are looked up from the credential store by hostname.
+    Never pass passwords as tool parameters - they would be exposed to the LLM.
+
     Args:
-        vnc_server: VNC server address (e.g., "localhost::5901")
+        hostname: VNC server hostname (e.g., "vnc-prod-01.example.com" or "vnc-desktop")
+                  Used to look up credentials from credential store.
         task: Task description to execute
-        vnc_password: VNC password (optional)
         step_limit: Maximum number of steps (default: 40)
         timeout: Timeout in seconds (default: 300)
         ctx: FastMCP context for streaming (injected automatically)
@@ -50,16 +60,41 @@ async def execute_vnc_task(
         - run_dir: Path to run artifacts directory
         - steps: Number of steps executed
         - error: Error message (if failed)
+
+    Raises:
+        ValueError: If credentials for hostname not found in credential store
     """
     if ctx:
         await ctx.info(f"Starting VNC task: {task}")
-        await ctx.info(f"Connecting to VNC server: {vnc_server}")
+        await ctx.info(f"Looking up credentials for hostname: {hostname}")
 
     try:
+        # Look up credentials from store
+        credentials = credential_store.get(hostname)
+        if not credentials:
+            error_msg = (
+                f"No credentials found for hostname '{hostname}'. "
+                f"Configure credentials using: vnc-use credentials set {hostname}"
+            )
+            logger.error(error_msg)
+            if ctx:
+                await ctx.info(f"✗ Error: {error_msg}")
+            return {
+                "success": False,
+                "error": error_msg,
+                "run_id": None,
+                "run_dir": None,
+                "steps": 0,
+            }
+
+        if ctx:
+            await ctx.info(f"Found credentials for {hostname}")
+            await ctx.info(f"Connecting to VNC server: {credentials.server}")
+
         # Create agent with streaming support
         agent = VncUseAgent(
-            vnc_server=vnc_server,
-            vnc_password=vnc_password,
+            vnc_server=credentials.server,
+            vnc_password=credentials.password,
             step_limit=step_limit,
             seconds_timeout=timeout,
             hitl_mode=False,  # No HITL in MCP mode

@@ -32,6 +32,8 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - MCP_HOST=${MCP_HOST:-0.0.0.0}
       - MCP_PORT=${MCP_PORT:-8000}
+      - VNC_SERVER=${VNC_SERVER:-vnc-desktop::5901}
+      - VNC_PASSWORD=${VNC_PASSWORD:-vncpassword}
     volumes:
       - ./runs:/app/runs  # Mount runs directory for artifacts
     depends_on:
@@ -39,7 +41,6 @@ services:
     restart: unless-stopped
     networks:
       - vnc-network
-    command: python -m vnc_use.mcp_cli
 
 volumes:
   vnc-home:

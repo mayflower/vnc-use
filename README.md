@@ -167,6 +167,91 @@ You can override these exclusions by passing `excluded_actions=[]` when initiali
 
 All coordinates from Gemini are **normalized to 0-999** (1000x1000 reference grid) and automatically converted to pixels based on the current screenshot dimensions.
 
+## Credential Management
+
+VNC server credentials are stored securely using a multi-tier credential store system. Credentials are **never passed as tool parameters** to avoid exposing them to LLMs.
+
+### Credential Storage Backends
+
+The system tries multiple storage backends in order (most secure first):
+
+1. **OS Keyring** (encrypted, recommended for production)
+   - macOS: Keychain
+   - Windows: Credential Locker
+   - Linux: Secret Service / GNOME Keyring
+   - Requires: `pip install vnc-use[keyring]`
+
+2. **~/.vnc_credentials** (Unix .netrc format)
+   - Simple text file with `chmod 600` permissions
+   - Standard Unix pattern, works everywhere
+   - Format: `machine hostname\nlogin server\npassword secret`
+
+3. **Environment Variables** (fallback for single-tenant)
+   - `VNC_SERVER` and `VNC_PASSWORD`
+   - Useful for Docker/testing
+   - Only supports one VNC server
+
+### Managing Credentials
+
+**Set credentials for a VNC server:**
+```bash
+# Password will be prompted (recommended)
+vnc-use-credentials set vnc-prod --server prod.example.com::5901
+
+# Or specify password inline (⚠ visible in shell history)
+vnc-use-credentials set vnc-desktop --server vnc-desktop::5901 --password vncpassword
+```
+
+**List configured servers:**
+```bash
+vnc-use-credentials list
+```
+
+**Get credentials:**
+```bash
+# Show server (password masked)
+vnc-use-credentials get vnc-prod
+
+# Show password in plain text
+vnc-use-credentials get vnc-prod --show-password
+```
+
+**Delete credentials:**
+```bash
+vnc-use-credentials delete vnc-prod
+```
+
+### Using Credentials
+
+Once credentials are stored, refer to VNC servers by **hostname only**:
+
+```python
+from vnc_use import VncUseAgent
+
+# Credentials looked up automatically by hostname
+agent = VncUseAgent(vnc_server="vnc-prod")
+result = agent.run("Open browser and go to example.com")
+```
+
+For the MCP server, pass only the hostname:
+```python
+result = await client.call_tool(
+    "execute_vnc_task",
+    {
+        "hostname": "vnc-desktop",  # Credentials from server-side store
+        "task": "Open browser...",
+    }
+)
+```
+
+### Security Benefits
+
+- ✓ Passwords never in LLM conversation logs
+- ✓ Passwords never in tool parameters
+- ✓ OS-level encryption (when using keyring)
+- ✓ Multi-tenant support (hundreds of VNC servers)
+- ✓ Credential rotation without code changes
+
 ## MCP Server
 
 The VNC Computer Use agent can be run as a Model Context Protocol (MCP) server, enabling integration with MCP clients and providing streaming progress updates, observations, and screenshots during execution.
@@ -208,8 +293,7 @@ async def main():
         result = await client.call_tool(
             "execute_vnc_task",
             {
-                "vnc_server": "vnc-desktop::5901",  # Docker service name
-                "vnc_password": "vncpassword",
+                "hostname": "vnc-desktop",  # Credentials from server-side store
                 "task": "Open the browser and go to example.com",
                 "step_limit": 20,
             }
@@ -218,6 +302,8 @@ async def main():
 
 asyncio.run(main())
 ```
+
+**Note:** The Docker MCP server is pre-configured with credentials for `vnc-desktop` from environment variables. For production use with multiple VNC servers, use the credential management CLI.
 
 ### Starting the MCP Server
 
@@ -250,14 +336,15 @@ uv run vnc-use-mcp
 
 ### MCP Tool: `execute_vnc_task`
 
-The server exposes a single tool for executing VNC tasks:
+The server exposes a single tool for executing VNC tasks.
 
 **Parameters:**
-- `vnc_server` (required): VNC server address (e.g., "localhost::5901")
+- `hostname` (required): VNC server hostname for credential lookup (e.g., "vnc-desktop", "vnc-prod")
 - `task` (required): Task description to execute
-- `vnc_password` (optional): VNC password
 - `step_limit` (optional): Maximum steps (default: 40)
 - `timeout` (optional): Timeout in seconds (default: 300)
+
+**Security Note:** Credentials are looked up from the server-side credential store using the hostname. Never pass passwords as parameters - they would be exposed to the LLM.
 
 **Returns:**
 ```json
@@ -297,8 +384,7 @@ async def browse_website():
         result = await client.call_tool(
             "execute_vnc_task",
             {
-                "vnc_server": "vnc-desktop::5901",
-                "vnc_password": "vncpassword",
+                "hostname": "vnc-desktop",
                 "task": "Open browser and go to python.org. Tell me the latest Python version shown on the homepage.",
                 "step_limit": 20,
                 "timeout": 120,
@@ -334,8 +420,7 @@ async def scrape_news():
         result = await client.call_tool(
             "execute_vnc_task",
             {
-                "vnc_server": "vnc-desktop::5901",
-                "vnc_password": "vncpassword",
+                "hostname": "vnc-desktop",
                 "task": task,
                 "step_limit": 30,
             }
@@ -352,13 +437,14 @@ async def scrape_news():
 asyncio.run(scrape_news())
 ```
 
-**Network Configuration:**
+**Credential Configuration:**
 
-When the MCP server runs in Docker:
-- **Inside Docker network**: Use `vnc-desktop::5901` (service name)
-- **From host machine**: Use `localhost::5901` (if you expose VNC port)
+The Docker MCP server is pre-configured with credentials for `vnc-desktop` via environment variables. The credentials are automatically set up when the container starts.
 
-The MCP server (in Docker) connects to VNC via internal Docker network, so always use `vnc-desktop::5901` as the `vnc_server` parameter.
+For multiple VNC servers in production:
+1. Configure credentials on the MCP server host using `vnc-use-credentials set`
+2. Pass only the `hostname` parameter - credentials are looked up server-side
+3. Never pass passwords in tool parameters - they would be exposed to the LLM
 
 ### Troubleshooting MCP Server
 

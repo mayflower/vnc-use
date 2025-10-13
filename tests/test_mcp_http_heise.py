@@ -52,7 +52,7 @@ async def test_heise_news_via_mcp():
             # Execute task to get heise.de news
             print("\n3. Executing VNC task...")
             print("   Task: Navigate to heise.de and extract latest news headlines")
-            print("   VNC Server: vnc-desktop::5901 (Docker network)")
+            print("   Hostname: vnc-desktop (credentials from server-side store)")
             print("   This may take 1-2 minutes...")
 
             task = """Open a web browser (if not already open).
@@ -64,8 +64,7 @@ Report the first 5 news headlines you can see on the page."""
             result = await client.call_tool(
                 "execute_vnc_task",
                 {
-                    "vnc_server": "vnc-desktop::5901",  # Docker service name
-                    "vnc_password": "vncpassword",
+                    "hostname": "vnc-desktop",  # Credentials looked up from server-side store
                     "task": task,
                     "step_limit": 30,  # Allow enough steps for browser + navigation
                     "timeout": 300,  # 5 minutes
