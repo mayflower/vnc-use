@@ -11,7 +11,6 @@ from langgraph.types import interrupt
 
 from .backends.vnc import VNCController
 from .logging_utils import RunLogger
-from .planners.gemini import GeminiComputerUse
 from .safety import HITLGate, requires_confirmation, should_block
 from .types import CUAState
 
@@ -36,6 +35,7 @@ class VncUseAgent:
         hitl_mode: bool = True,
         hitl_callback: Callable[[dict, list], Awaitable[bool]] | None = None,
         api_key: str | None = None,
+        model_provider: str = "gemini",
     ) -> None:
         """Initialize VNC Use Agent.
 
@@ -53,7 +53,8 @@ class VncUseAgent:
             hitl_callback: Optional async callback for HITL decisions.
                 Called with (safety_decision, pending_calls) and should return bool.
                 If not provided, uses LangGraph interrupt mechanism.
-            api_key: Google API key (defaults to GOOGLE_API_KEY env)
+            api_key: API key for the model provider (GOOGLE_API_KEY or ANTHROPIC_API_KEY env)
+            model_provider: LLM provider to use ("gemini" or "anthropic", defaults to "gemini")
         """
         self.vnc_server = vnc_server
         self.vnc_password = vnc_password
@@ -75,10 +76,28 @@ class VncUseAgent:
 
         # Initialize components
         self.vnc = VNCController()
-        self.planner = GeminiComputerUse(
-            excluded_actions=excluded_actions,
-            api_key=api_key,
-        )
+
+        # Initialize planner based on provider
+        if model_provider.lower() == "gemini":
+            from .planners import GeminiPlanner
+
+            self.planner: BasePlanner = GeminiPlanner(
+                excluded_actions=excluded_actions,
+                api_key=api_key,
+            )
+        elif model_provider.lower() == "anthropic":
+            from .planners import AnthropicPlanner
+
+            self.planner: BasePlanner = AnthropicPlanner(
+                excluded_actions=excluded_actions,
+                api_key=api_key,
+            )
+        else:
+            raise ValueError(
+                f"Unknown model_provider: {model_provider}. "
+                "Supported providers: 'gemini', 'anthropic'"
+            )
+
         self.hitl_gate = HITLGate()
         self.run_logger: RunLogger | None = None  # Set during run()
 

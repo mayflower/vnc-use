@@ -55,8 +55,8 @@ def compress_screenshot(png_bytes: bytes, max_width: int = 512) -> bytes:
     return compressed
 
 
-class GeminiComputerUse:
-    """Wrapper for Gemini 2.5 Computer Use model.
+class GeminiPlanner(BasePlanner):
+    """Gemini 2.5 Computer Use planner for VNC desktop control.
 
     Handles request building, response parsing, and function call extraction
     for the Computer Use API with VNC desktop control.
@@ -433,3 +433,7 @@ class GeminiComputerUse:
         )
 
         return response
+
+
+# Backward compatibility alias
+GeminiComputerUse = GeminiPlanner

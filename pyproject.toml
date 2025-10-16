@@ -16,6 +16,8 @@ dependencies = [
     "typing-extensions>=4.8",
     "pydantic>=2.0",
     "fastmcp>=2.3",
+    "langchain-core>=0.3.0",
+    "langchain-anthropic>=0.3.0",
 ]
 
 [project.optional-dependencies]

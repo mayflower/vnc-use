@@ -108,9 +108,7 @@ async def execute_vnc_task(
                 return True
 
             reason = (
-                safety_decision.get("reason", "Unknown reason")
-                if safety_decision
-                else "Unknown"
+                safety_decision.get("reason", "Unknown reason") if safety_decision else "Unknown"
             )
             actions = ", ".join(call["name"] for call in pending_calls)
 
@@ -140,6 +138,10 @@ async def execute_vnc_task(
                 await ctx.info(f"✗ Approval request failed: {e}")
                 return False
 
+        # Determine model provider from environment
+        model_provider = os.getenv("MODEL_PROVIDER", "gemini")
+        logger.info(f"Using model provider: {model_provider}")
+
         # Create agent with HITL enabled and elicitation callback
         agent = VncUseAgent(
             vnc_server=credentials.server,
@@ -147,9 +149,8 @@ async def execute_vnc_task(
             step_limit=step_limit,
             seconds_timeout=timeout,
             hitl_mode=True,  # Enable HITL for risky actions
-            hitl_callback=hitl_callback
-            if ctx
-            else None,  # Use elicitation when context available
+            hitl_callback=hitl_callback if ctx else None,  # Use elicitation when context available
+            model_provider=model_provider,
         )
 
         # Monkey-patch agent nodes to add streaming
@@ -251,11 +252,7 @@ def _wrap_agent_for_streaming(
         import asyncio
 
         try:
-            asyncio.run(
-                _async_progress(
-                    step, step_limit, f"Step {step}: Analyzing screenshot..."
-                )
-            )
+            asyncio.run(_async_progress(step, step_limit, f"Step {step}: Analyzing screenshot..."))
         except Exception as e:
             logger.warning(f"Progress reporting failed: {e}")
 
@@ -267,12 +264,8 @@ def _wrap_agent_for_streaming(
         if observation:
             try:
                 # Truncate long observations
-                obs_preview = (
-                    observation[:200] + "..." if len(observation) > 200 else observation
-                )
-                asyncio.run(
-                    _async_report(f"[Step {step}] Model observes: {obs_preview}")
-                )
+                obs_preview = observation[:200] + "..." if len(observation) > 200 else observation
+                asyncio.run(_async_report(f"[Step {step}] Model observes: {obs_preview}"))
             except Exception as e:
                 logger.warning(f"Observation streaming failed: {e}")
 
@@ -321,9 +314,7 @@ def _wrap_agent_for_streaming(
                 args_str = ", ".join(f"{k}={v}" for k, v in args.items())
                 status = "✓" if "Success" in result_text else "✗"
                 asyncio.run(
-                    _async_report(
-                        f"[Step {step}] {status} Executed: {action_name}({args_str})"
-                    )
+                    _async_report(f"[Step {step}] {status} Executed: {action_name}({args_str})")
                 )
             except Exception as e:
                 logger.warning(f"Result streaming failed: {e}")

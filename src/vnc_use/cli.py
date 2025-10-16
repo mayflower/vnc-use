@@ -73,6 +73,11 @@ Examples:
         help="Actions to exclude (e.g., drag_and_drop)",
     )
     parser.add_argument(
+        "--model-provider",
+        choices=["gemini", "anthropic"],
+        help="LLM provider to use (default: from MODEL_PROVIDER env or 'gemini')",
+    )
+    parser.add_argument(
         "--verbose",
         "-v",
         action="store_true",
@@ -91,6 +96,12 @@ Examples:
         logger.info(f"VNC Server: {args.vnc}")
 
         try:
+            # Determine model provider
+            import os
+
+            model_provider = args.model_provider or os.getenv("MODEL_PROVIDER", "gemini")
+            logger.info(f"Using model provider: {model_provider}")
+
             # Initialize agent
             agent = VncUseAgent(
                 vnc_server=args.vnc,
@@ -98,6 +109,7 @@ Examples:
                 step_limit=args.step_limit,
                 seconds_timeout=args.timeout,
                 hitl_mode=not args.no_hitl,
+                model_provider=model_provider,
                 excluded_actions=args.excluded_actions,
             )
 
