@@ -1,11 +1,12 @@
 # vnc-use
 
-**LangGraph agent for Computer Use via VNC with Gemini 2.5**
+**LangGraph agent for Computer Use via VNC with Multi-Model LLM Support**
 
-A Python package that enables autonomous desktop interaction through VNC using Google's Gemini 2.5 Computer Use model. The agent runs a tight *observe → propose → act* loop, grounding actions directly from screenshots without OCR or template matching.
+A Python package that enables autonomous desktop interaction through VNC using state-of-the-art Computer Use models (Gemini 2.5 or Anthropic Claude Haiku 4.5). The agent runs a tight *observe → propose → act* loop, grounding actions directly from screenshots without OCR or template matching.
 
 ## Features
 
+- **Multi-model LLM support** - Choose between Gemini 2.5 Computer Use or Anthropic Claude Haiku 4.5
 - **Direct screenshot grounding** - No OCR, no template matching (per Computer Use design)
 - **Generic desktop automation** - Works with any VNC-accessible desktop
 - **Secure credential management** - Multi-tenant support with OS keyring, .netrc, or environment variables
@@ -25,7 +26,7 @@ Task
   ↓
 Observe (VNC Screenshot)
   ↓
-Propose (Gemini Computer Use)
+Propose (LLM: Gemini or Claude)
   ↓
 HITL Gate (if confirmation needed)
   ↓
@@ -33,6 +34,34 @@ Act (Execute on VNC)
   ↓
 Loop until done or timeout
 ```
+
+## Model Selection
+
+vnc-use supports multiple LLM providers through a pluggable architecture:
+
+| Provider | Model | Best For | Speed | Cost |
+|----------|-------|----------|-------|------|
+| **Gemini** | `gemini-2.5-computer-use-preview-10-2025` | Complex tasks, multi-step workflows | Medium | Medium |
+| **Anthropic** | `claude-haiku-4-5-20251015` | Fast responses, cost optimization | Fast | Low |
+
+**Select via environment variable:**
+```bash
+# Use Anthropic Claude Haiku 4.5 (faster, cheaper)
+export MODEL_PROVIDER=anthropic
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# Use Gemini 2.5 Computer Use (default)
+export MODEL_PROVIDER=gemini
+export GOOGLE_API_KEY=...
+```
+
+**Or via CLI flag:**
+```bash
+vnc-use run --model-provider anthropic --task "..."
+vnc-use run --model-provider gemini --task "..."
+```
+
+Both models use the same VNC backend, HITL safety, and action execution infrastructure.
 
 **Key Design Decisions:**
 - **Stateless vision**: Each turn sends only the current screenshot + text history (no screenshot accumulation)
