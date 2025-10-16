@@ -16,6 +16,8 @@ from google.genai.types import (
     Tool,
 )
 
+from .base import BasePlanner
+
 
 logger = logging.getLogger(__name__)
 
