@@ -16,7 +16,7 @@ from .vnc_tools import get_vnc_tools
 logger = logging.getLogger(__name__)
 
 # Default model for Anthropic
-DEFAULT_MODEL = "claude-haiku-4-5-20251015"
+DEFAULT_MODEL = "claude-haiku-4-5"
 
 
 class AnthropicPlanner(BasePlanner):
