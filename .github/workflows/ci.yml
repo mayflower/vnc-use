@@ -170,7 +170,12 @@ jobs:
     name: SonarQube Analysis
     runs-on: mayflower-k8s-runners
     needs: [quality, test]
-    if: always()  # Run even if tests fail - we still want quality metrics
+    # Skipped for fork pull requests: this job runs on mayflower-k8s-runners,
+    # a self-hosted pool inside the Mayflower data cluster, and the workflow
+    # triggers on pull_request -- which GitHub also fires for forks.
+    # always() keeps it running when the upstream jobs fail, which is the
+    # point of collecting quality metrics either way.
+    if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
 
     steps:
       - uses: actions/checkout@v4
